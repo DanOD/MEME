@@ -19,22 +19,28 @@ LARGE_FONT= ("Verdana", 12)
 
 
 #color=['red','blue']
-name=['Reservoir','Reservoir Output','Elbow','LFV','VCR Swage','Dump Input']
+name=['Reservoir','Reservoir Output','Elbow','LFV','VCR Swage','Dump Input'
+      ,'1','2','3','4','5','6','7','8'#,'9','10','11','12','13','14','15','16','17','18','19','20'
+      ]
+rows = len(name)
 serial=360018184
 serial2=360015878
-pins= [13,12,11,10,9,8]  # This is the AIN 0-13 that is read
+# pins= [13,12,11,10,9,8]  # This is the AIN 0-13 that is read
+pins = [0,1,2,3,4,5,6,7,8,9,10,11,12,13]
 
 dacpins = [1,1,0,0] ### labjack output for chip to run
-PWMpins=[13,12,11,8]
+PWMpins = [13,12,11,8]
 timerpins = [0,1,2,3] ### labjack output of frequency for duty cycle
-R=[36,50,9,6]
-maxpwm=[2*i/120*100 for i in R]
+dutycycles = [36,50,9,6]
+maxpwm = [2*i/120*100 for i in dutycycles]
 
 
 num_timers=len(timerpins)
-color = ['red','blue','green','magenta','purple','brown','black','orange','pink','gray'] ### add more
+color = ['red','blue','green','magenta','purple','brown','black','orange','pink','gray'
+         ,'red','red','red','red','red','red','red','red','red','red','red','red','red','red','red','red','red','red','red','red'
+         ] ### add more
 
-maxlen = 1E7 # Time in seconds that the graph runs for
+maxlen = 1E2 # Time in seconds that the graph runs for
 
 times = np.linspace(0, maxlen, int(maxlen + 1))
 timestep = 0 # running variable represending time, use to index data array. Should not exceed 179 (179th index is 180tb value)
@@ -49,7 +55,7 @@ linewidth = 2.    # thickness of the graph line
 
 
 fig = plt.figure()
-a=fig.add_subplot(111)
+a=fig.add_subplot(111) ### for later use in a.plot() in plot_data
 idx=np.zeros(len(PWMpins))
 
 for ii,i in enumerate(PWMpins):
@@ -84,6 +90,14 @@ def StoreData(data,temp1,timestep):
 
     return data,timestep
 
+##################################################################################### STORE NANS WHEN PLOT TURNED OFF INSTEAD OF STOPPING THE PLOT.
+##################################################################################### WE WANT STUFF TO STAY THERE BUT JUST NOT PLOT ANYMORE.
+
+##################################################################################### ADD CHECKBOX FOR WHETHER OR NOT WE WANT TO SAVE DATA (PREVIOUS NOT DELETED)
+##################################################################################### DATA WILL BE LIVE WRITTEN INTO A FILE (probably)
+##################################################################################### LIMIT FILE SIZE
+##################################################################################### FILE NAME CORRESPONDS TO TIME AND DATE (find module with that)
+
 
 def plot_data(data,timer,var,color,name,timestep):
     global inc ### inc starts at window_width, represents time past window_width
@@ -109,10 +123,47 @@ def plot_data(data,timer,var,color,name,timestep):
         plt.xlim(inc-window_width-1,inc-2)
     return timer
 
+# def plot_data(data,timer,var,color,name,timestep):
+#     global inc ### inc starts at window_width, represents time past window_width
+#     data_length=timestep ### returns number of rows, should be equal to window_width (columns of data are pins indices)
+    
+#     if data_length > window_width-1: ### if window_width > window_width-1, so only this branch runs!!!
+    
+#     ### plot_data is called every second for each pin (run in a loop, in j,jj enumerate(pins)). 
+#     ### inc starts at window_width (60), represents time past window_width.
+#     ### times is linspace [0,1,2,...,maxlen] (keep small for testing, might try another method)
+#     ### don't worry about color and name
+#     ### var is array that stores plot or not 
+#     ### timestep is running variable, increases by 1 every time store_data is called, until 180 (basically pre-inc)
+#     ### timer is just an array of ones, which gets called per index. it starts as 1
+    
+#         if var.get(): ### IF WE TELL IT TO PLOT
+        
+#             if (inc-timer)<window_width: ### within graph
+#             ### x from 
+#                 a.plot(times[timer:inc], data[-(inc-timer):], linewidth = linewidth,color='%s'%color,label='%s'%name) ### plt.plot
+
+#             else: ### exceeds graph, so we plot 
+#                 a.plot(times[inc-window_width:inc], data[-window_width:], linewidth = linewidth,color='%s'%color,label='%s'%name,)
+
+#         else: ### IF PLOT CHECKMARK NOT SELECTED, DO THE SAME THING EXCEPT PLOT NANS
+#         ### to do this, we need to still keep plotting all the other data. 
+#         ### So we make a new array of just that data 
+        
+#             # if (inc-timer)<window_width:
+#             #     a.plot(times[timer:inc], data[-(inc-timer):], linewidth = linewidth,color='%s'%color,label='%s'%name) ### plt.plot
+
+#             # else:
+#             #     a.plot(times[inc-window_width:inc], data[-window_width:], linewidth = linewidth,color='%s'%color,label='%s'%name,)
+#             1==1
+#         timer=inc ### timer = 180 + time past 180
+            
+#     if data_length > window_width:
+#         plt.xlim(inc-window_width-1,inc-2)
+#     return timer
+
 ## these are just if check mark is selected or not... but how does IntVar distinguish between buttons?
-var = list(np.zeros(len(pins)))
-for i in range(0,len(pins)):
-    var[i] = tk.IntVar()
+
 
 def set(var):
     if var.get()==0:
@@ -144,7 +195,11 @@ def stopPWM(LJ,dacnumber):
     LJ.getFeedback(u6.DAC8(dacnumber,DAC0_VALUE))
 
 
-U6=LabjackSetup(serial,num_timers)
+try:
+    U6=LabjackSetup(serial,num_timers)
+except:
+    print("devMode")
+
 #U6Pro=LabjackSetup(serial2,1)
 
 '''
@@ -176,132 +231,168 @@ class GUI(tk.Tk):
         canvas1.draw()
         canvas1.get_tk_widget().grid()
 
-        Frame2=tk.Frame(self,height=400)
+        ### BACKGROUND FOR ALL OPTIONS, COL 1
+        BackFrame=tk.Frame(self,height=400)
         #Frame2.config(height=100)
-        Frame2.grid(row=0,column=1)
+        BackFrame.grid(row=0,column=1)
+        
+        TitleFrame = tk.Frame(BackFrame)
+        TitleFrame.grid(row=0)
+        
+        titles = ["TC Locations","Temperature oC","Setpoint","Plot Y/N"]
+        columns = len(titles)
+        labels1 = [tk.Label() for j in range(0,columns)]
+        for j in range(0,columns):
+            labels1[j] = tk.Label(TitleFrame, relief="solid", font=LARGE_FONT,text = str(titles[j]))
+            labels1[j].grid(row=0,column=j,pady=10,padx=10,sticky="news")
+        
+        ### Frames can scroll, canvases can't. To have a frame, you need to put it on a canvas. 
+        ### You can't put a canvas without a frame. First frame has root as master. 
+        ScrollFrame = tk.Frame(BackFrame)
+        ScrollFrame.grid(row=1,column=0,sticky="news")
+        ScrollFrame.grid_rowconfigure(0,weight=1)
+        ScrollFrame.grid_columnconfigure(0,weight=1)
+        ScrollFrame.grid_propagate(False)
+        
+        ScrollCanvas = tk.Canvas(ScrollFrame)
+        ScrollCanvas.grid(row=0,column=0,sticky="news")
+        
+        scrollbary = tk.Scrollbar(ScrollFrame, orient="vertical", command=ScrollCanvas.yview)
+        scrollbary.grid(row=0,column=1,sticky="ns")
+        ScrollCanvas.configure(yscrollcommand=scrollbary.set)
+        
+        OptionsFrame = tk.Frame(ScrollCanvas)
+        ScrollCanvas.create_window((0,0),window = OptionsFrame, anchor = "center")
+        
 
-
-        ###### THERMOCOUPLE LOCATIONS - FRAME 5 ############
-        label11=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='TC Locations')
-        label11.grid(row=0,pady=10,padx=10)
-        label12=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='%s'%name[0],fg='%s'%color[0])
-        label12.grid(row=1,pady=10,padx=10)
-        label13=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='%s'%name[1],fg='%s'%color[1])
-        label13.grid(row=2,pady=10,padx=10)
-        label14=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='%s'%name[2],fg='%s'%color[2])
-        label14.grid(row=3,pady=10,padx=10)
-        label15=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='%s'%name[3],fg='%s'%color[3])
-        label15.grid(row=4,pady=10,padx=10)
-        label16=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='%s'%name[4],fg='%s'%color[4])
-        label16.grid(row=5,pady=10,padx=10)
-        label17=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='%s'%name[5],fg='%s'%color[5])
-        label17.grid(row=6,pady=10,padx=10)
-
-        ########## ACTUAL TEMPERATURE ###############
-        self.label21=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='Temperature oC')
-        self.label21.grid(row=0,column=1,pady=10,padx=10)
-        self.label22=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='start')
-        self.label22.grid(row=1,column=1,pady=10,padx=10)
-        self.label23=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='start')
-        self.label23.grid(row=2,column=1,pady=10,padx=10)
-        self.label24=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='start')
-        self.label24.grid(row=3,column=1,pady=10,padx=10)
-        self.label25=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='start')
-        self.label25.grid(row=4,column=1,pady=10,padx=10)
-        self.label26=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='start')
-        self.label26.grid(row=5,column=1,pady=10,padx=10)
-        self.label27=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='start')
-        self.label27.grid(row=6,column=1,pady=10,padx=10)
-
-
-        ######## SET_POINTS #######
-        label41=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='Setpoint')
-        label41.grid(row=0,column=2,pady=10,padx=10)
-        self.e1=tk.Entry(Frame2)
-        self.e1.grid(row=1,column=2,pady=10,padx=10)
-        self.e2=tk.Entry(Frame2)
-        self.e2.grid(row=2,column=2,pady=10,padx=10)
-        self.e3=tk.Entry(Frame2)
-        self.e3.grid(row=3,column=2,pady=10,padx=10)
-        self.e4=tk.Entry(Frame2)
-        self.e4.grid(row=6,column=2,pady=10,padx=10)
-
-        ####### PLOTTTING Y/N #################
-        label31=tk.Label(Frame2,relief='solid',font=LARGE_FONT,text='Plot Y/N')
-        label31.grid(row=0,column=3,pady=10,padx=10)
-        c1=tk.Checkbutton(Frame2,text='',command= lambda : set(var[0]) )
-        c1.grid(row=1,column=3,pady=10,padx=10)
-        c2=tk.Checkbutton(Frame2,text='',command= lambda : set(var[1]) )
-        c2.grid(row=2,column=3,pady=10,padx=10)
-        c3=tk.Checkbutton(Frame2,text='',command= lambda : set(var[2]) )
-        c3.grid(row=3,column=3,pady=10,padx=10)
-        c4=tk.Checkbutton(Frame2,text='',command= lambda : set(var[3]) )
-        c4.grid(row=4,column=3,pady=10,padx=10)
-        c5=tk.Checkbutton(Frame2,text='',command= lambda : set(var[4]) )
-        c5.grid(row=5,column=3,pady=10,padx=10)
-        c6=tk.Checkbutton(Frame2,text='',command= lambda : set(var[5]) )
-        c6.grid(row=6,column=3,pady=10,padx=10)
-
+        ###### generalized ###########
+        
+        tclocations = [tk.Label() for i in range(0,rows)]
+        self.currenttemp = [tk.Label() for i in range(0,rows)]
+        self.setpoints = [tk.Entry() for i in range(0,rows)]
+        
+        self.var = [tk.IntVar(self) for i in range(0,rows)]
+        plotornot = [tk.Checkbutton() for i in range(0,rows)]
+        
+        for i in range(0,rows): ### must have sufficient length of: name, color, var (which depends on pins)
+        
+            ##### THERMOCOUPLE LOCATIONS ###########
+            tclocations[i] = tk.Label(OptionsFrame, relief="solid", font=LARGE_FONT, text='%s'%name[i],fg='%s'%color[i])
+            tclocations[i].grid(row=i,pady=10,padx=10)
+            ###### ACTUAL TEMPERATURE ############
+            self.currenttemp[i] = tk.Label(OptionsFrame, relief="solid", font=LARGE_FONT, text="start")
+            self.currenttemp[i].grid(row=i,column=1,pady=10,padx=10)
+            ####### SET POINTS #################
+            self.setpoints[i] = tk.Entry(OptionsFrame)
+            self.setpoints[i].grid(row=i,column=2,pady=10,padx=10)
+            ########## PLOTTING Y/N CHECK ##################
+            plotornot[i] = tk.Checkbutton(OptionsFrame,text='', variable = self.var[i])
+            plotornot[i].grid(row=i,column=3,pady=10,padx=10)
+            
+        OptionsFrame.update_idletasks()
+        
+        width = 300
+        height = 400
+        ScrollFrame.config(width=width + scrollbary.winfo_width(),height=height)
+        
+        ScrollCanvas.config(scrollregion = ScrollCanvas.bbox('all'))
 
     def f(self,TC1):
-        self.label22.configure(text='%.2f'%(TC1[0]))
-        self.label23.configure(text='%.2f'%(TC1[1]))
-        self.label24.configure(text='%.2f'%(TC1[2]))
-        self.label25.configure(text='%.2f'%(TC1[3]))
-        self.label26.configure(text='%.2f'%(TC1[4]))
-        self.label27.configure(text='%.2f'%(TC1[5]))
+        for i in range(0,rows):
+            self.currenttemp[i].configure(text='%.2f'%(TC1[i]))
         self.update()
 
 ### we also need the pins corresponding to these timer/dac pins...
 ### so like maybe AIN pin 4 gives us TC data to convert to an output for timer 2
 
-
-gui=GUI(U6)
+try:
+    gui=GUI(U6)
+except:
+    gui=GUI(1)
 t1=0
 t2=0
 dutycycle=25
 
 t= np.ones(len(pins),dtype=int)### is this just a random array of size len(pins)
-while True:
-    ### temp1 is list of 13
-    temp1=TCvalue(U6,pins)
 
-    #### LOOP FOR EACH INPUT 0-13
-    data,timestep=StoreData(data,temp1,timestep) #store data
-    a.clear()  #clear plot on gui
+try: 
+    while True:
+        ### temp1 is list of 13
+        temp1=TCvalue(U6,pins)
+    
+        #### LOOP FOR EACH INPUT 0-13
+        data,timestep=StoreData(data,temp1,timestep) #store data. TIMESTEP IS RUNNING VARIABLE FOR TIME
+        a.clear()  #clear plot on gui
+    
+        for j,jj in enumerate(pins): #since pins values are its indices
+            # print(jj,gui.var[j].get())
+            t[j]=plot_data(data[:,j],t[j],gui.var[j],color[j],name[j],timestep) ### updates t (timer)
+    
+        ##### END OF LOOP ########
+    
+        plt.grid(b=True, axis='y')
+        plt.title('Temperature')
+        plt.xlabel('Time (sec)')
+        plt.ylabel('Temperature ($^o$C)')
+        fig.canvas.draw()
+    
+        # create new list with the gui.en.gets()s, which we can loop over to read setpoint, which we then get to labjack output via pid.update
+        # for loop for each pins
+        
+        updatedsetpoints = np.zeros(rows)
+        for k in range(0,rows):
+            try:
+                updatedsetpoints[k] = int(gui.setpoints[k].get())
+            except:
+                pass
 
-    for i,ii in enumerate(pins): #since pins values are its indices
-        t[i]=plot_data(data[:,i],t[i],var[i],color[i],name[i],timestep)
-
-    ##### END OF LOOP ########
-
-    plt.grid(b=True, axis='y')
-    plt.title('Temperature')
-    plt.xlabel('Time (sec)')
-    plt.ylabel('Temperature ($^o$C)')
-    fig.canvas.draw()
-
-    # create new list with the gui.en.gets()s, which we can loop over to read setpoint, which we then get to labjack output via pid.update
-    # for loop for each pins
-    setpoint = [gui.e1.get(),gui.e2.get(),gui.e3.get(),gui.e4.get()] ### in loop to constantly check input from GUI
-
-    for index,value in enumerate(PWMpins):
-        index1=int(idx[index])
-
-        if setpoint[index]=='': ### if there is no input in the GUI
-            stopPWM(U6,dacpins[index])
-        else:
-             ### convert to float
-            pid[index].SetPoint=float(setpoint[index]) ### desired temp fed into PWM
-            pid[index].update(temp1[index1]) ### update with current reading from AIN pin corresponding to timerpin[index]
-            targetpwm=pid[index].output ### pid.output tells us duty cycle we want to run at
-            targetpwm=max(min(int(targetpwm),maxpwm[index]),10) ### won't work at <10% duty cycle, 50 is upper bound to prevent overdraw of current
-            PWM(U6,targetpwm,dacpins[index],timerpins[index]) ### given input from AIN pin i, output to DAC pin j
-            print(targetpwm)
-
-    gui.after(1000,gui.f(temp1))
-
-
+        for index,value in enumerate(PWMpins):
+            index1=int(idx[index])
+    
+            if setpoint[index]=='': ### if there is no input in the GUI
+                stopPWM(U6,dacpins[index])
+            else:
+                 ### convert to float
+                pid[index].SetPoint=float(setpoint[index]) ### desired temp fed into PWM
+                pid[index].update(temp1[index1]) ### update with current reading from AIN pin corresponding to timerpin[index]
+                targetpwm=pid[index].output ### pid.output tells us duty cycle we want to run at
+                targetpwm=max(min(int(targetpwm),maxpwm[index]),10) ### won't work at <10% duty cycle, 50 is upper bound to prevent overdraw of current
+                PWM(U6,targetpwm,dacpins[index],timerpins[index]) ### given input from AIN pin i, output to DAC pin j
+                print(targetpwm)
+    
+        gui.after(1000,gui.f(temp1))
+        
+except:
+    while True:
+        temp1 = np.random.randint(0,high=10,size=len(pins))
+        #### LOOP FOR EACH INPUT 0-13
+        data,timestep=StoreData(data,temp1,timestep) #store data
+        a.clear()  #clear plot on gui
+    
+        for j,jj in enumerate(pins): #since pins values are its indices
+            # print(jj,gui.var[j].get())
+            t[j]=plot_data(data[:,j],t[j],gui.var[j],color[j],name[j],timestep) ### original t[j] is "timer" in plot_data function
+    
+        ##### END OF LOOP ########
+    
+        plt.grid(b=True, axis='y')
+        plt.title('Temperature')
+        plt.xlabel('Time (sec)')
+        plt.ylabel('Temperature ($^o$C)')
+        fig.canvas.draw()
+    
+        # create new list with the gui.en.gets()s, which we can loop over to read setpoint, which we then get to labjack output via pid.update
+        # for loop for each pins
+        
+        updatedsetpoints = np.zeros(rows)
+        for k in range(0,rows):
+            try:
+                updatedsetpoints[k] = int(gui.setpoints[k].get())
+            except:
+                pass
+            
+        gui.after(1000,gui.f(temp1))
+    
 
 gui.mainloop()
 sys.exit()
