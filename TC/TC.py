@@ -16,20 +16,38 @@ import os
 import PID
 
 LARGE_FONT= ("Verdana", 12)
+Thermocouples=['Reservoir','Reservoir Outlet','External EM Pump','Chamber Input External','Chamber Input Internal','Curvy Inlet','Plate Inlet','Plate 1','Plate 3','Plate 4','Plate 5','Plate 6','Plate Outlet','Internal EM Pump','Curvey Outlet','Chamber Outlet Internal','Chamber Outlet External','Reservoir Input']
+PWMThermocouples=[] #List TCs used as value for PWM
+InputPins=[0,1,2,3,0,8,2,0,3,4,5,7,3,4,5,9,4,5] #list AIN # for each TC
+Labjack=['External','External','External','External','Internal','Plate','Internal','Plate','Plate','Plate','Plate','Plate','Internal','Internal','Internal','Plate','External','External'] #list LJ each TC is connected to
+PowerPins=[] #list Pin # for each PWMThermocouples
+TimerPins=[] #list Timer # for each PWMThermocouples
+HeaterRes=[] # list resistance for each heater
+PowerPintype=[] # list pin type for each power pin important as some DAC some FIO
 
-
+AIdict={}
+POWERdict={}
+TIMEdict={}
+'''
+for ii,i in enumerate(Thermocouples):
+    AIdict[i]=[Labjack[ii],Inputpins[ii]]
+for ii,i in enumerate(PWMThermocouples):
+    POWERdict[i]=[Labjack[ii],PowerPins[ii],HeaterRes[ii],PowerPintype[ii]]
+    TIMEdict[i]=[Labjack[ii],TimerPins[ii]]
+'''
 #color=['red','blue']
 name=['Reservoir','Reservoir Output','Elbow','LFV','VCR Swage','Dump Input'
       ,'1','2','3','4','5','6','7','8'#,'9','10','11','12','13','14','15','16','17','18','19','20'
       ]
-rows = len(name)
-serial=360018184
-serial2=360015878
-# pins= [13,12,11,10,9,8]  # This is the AIN 0-13 that is read
-pins = [0,1,2,3,4,5,6,7,8,9,10,11,12,13]
 
+Plate=360018184
+Internal=360015878
+External=360019699
+# pins= [13,12,11,10,9,8]  # This is the AIN 0-13 that is read
+pins = [3,5]
+rows=len(pins)
 dacpins = [1,1,0,0] ### labjack output for chip to run
-PWMpins = [13,12,11,8]
+PWMpins = [3]
 timerpins = [0,1,2,3] ### labjack output of frequency for duty cycle
 dutycycles = [36,50,9,6]
 maxpwm = [2*i/120*100 for i in dutycycles]
@@ -44,7 +62,7 @@ maxlen = 1E2 # Time in seconds that the graph runs for
 
 times = np.linspace(0, maxlen, int(maxlen + 1))
 timestep = 0 # running variable represending time, use to index data array. Should not exceed 179 (179th index is 180tb value)
-window_width = 60  # width of the scrolling window in sec
+window_width = 10  # width of the scrolling window in sec
 
 data=np.empty((len(pins),window_width)) ### empty array in which we store all data
 data = np.transpose(data) ### makes rows timestep and columns pins
@@ -126,30 +144,30 @@ def plot_data(data,timer,var,color,name,timestep):
 # def plot_data(data,timer,var,color,name,timestep):
 #     global inc ### inc starts at window_width, represents time past window_width
 #     data_length=timestep ### returns number of rows, should be equal to window_width (columns of data are pins indices)
-    
+
 #     if data_length > window_width-1: ### if window_width > window_width-1, so only this branch runs!!!
-    
-#     ### plot_data is called every second for each pin (run in a loop, in j,jj enumerate(pins)). 
+
+#     ### plot_data is called every second for each pin (run in a loop, in j,jj enumerate(pins)).
 #     ### inc starts at window_width (60), represents time past window_width.
 #     ### times is linspace [0,1,2,...,maxlen] (keep small for testing, might try another method)
 #     ### don't worry about color and name
-#     ### var is array that stores plot or not 
+#     ### var is array that stores plot or not
 #     ### timestep is running variable, increases by 1 every time store_data is called, until 180 (basically pre-inc)
 #     ### timer is just an array of ones, which gets called per index. it starts as 1
-    
+
 #         if var.get(): ### IF WE TELL IT TO PLOT
-        
+
 #             if (inc-timer)<window_width: ### within graph
-#             ### x from 
+#             ### x from
 #                 a.plot(times[timer:inc], data[-(inc-timer):], linewidth = linewidth,color='%s'%color,label='%s'%name) ### plt.plot
 
-#             else: ### exceeds graph, so we plot 
+#             else: ### exceeds graph, so we plot
 #                 a.plot(times[inc-window_width:inc], data[-window_width:], linewidth = linewidth,color='%s'%color,label='%s'%name,)
 
 #         else: ### IF PLOT CHECKMARK NOT SELECTED, DO THE SAME THING EXCEPT PLOT NANS
-#         ### to do this, we need to still keep plotting all the other data. 
-#         ### So we make a new array of just that data 
-        
+#         ### to do this, we need to still keep plotting all the other data.
+#         ### So we make a new array of just that data
+
 #             # if (inc-timer)<window_width:
 #             #     a.plot(times[timer:inc], data[-(inc-timer):], linewidth = linewidth,color='%s'%color,label='%s'%name) ### plt.plot
 
@@ -157,7 +175,7 @@ def plot_data(data,timer,var,color,name,timestep):
 #             #     a.plot(times[inc-window_width:inc], data[-window_width:], linewidth = linewidth,color='%s'%color,label='%s'%name,)
 #             1==1
 #         timer=inc ### timer = 180 + time past 180
-            
+
 #     if data_length > window_width:
 #         plt.xlim(inc-window_width-1,inc-2)
 #     return timer
@@ -196,26 +214,12 @@ def stopPWM(LJ,dacnumber):
 
 
 try:
-    U6=LabjackSetup(serial,num_timers)
+    U6=LabjackSetup(Internal,1)
+    print('ll')
 except:
     print("devMode")
 
-#U6Pro=LabjackSetup(serial2,1)
 
-'''
-def DCcorrect(setpoint,T1,DC):
-    if DC<=50:
-        #print(T1,setpoint)
-        #print('%f'%(abs(T1-setpoint)/setpoint))
-        if abs(T1-setpoint)/setpoint>.05:
-            print(DC)
-            print((T1-setpoint)/setpoint*DC)
-            DC-=(T1-setpoint)/setpoint*DC
-            print(DC)
-    else:
-        DC=50
-    return DC
-'''
 
 
 #### GUI OBJECT  ####
@@ -235,47 +239,47 @@ class GUI(tk.Tk):
         BackFrame=tk.Frame(self,height=400)
         #Frame2.config(height=100)
         BackFrame.grid(row=0,column=1)
-        
+
         TitleFrame = tk.Frame(BackFrame)
         TitleFrame.grid(row=0)
-        
+
         titles = ["TC Locations","Temperature oC","Setpoint","Plot Y/N"]
         columns = len(titles)
         labels1 = [tk.Label() for j in range(0,columns)]
         for j in range(0,columns):
             labels1[j] = tk.Label(TitleFrame, relief="solid", font=LARGE_FONT,text = str(titles[j]))
             labels1[j].grid(row=0,column=j,pady=10,padx=10,sticky="news")
-        
-        ### Frames can scroll, canvases can't. To have a frame, you need to put it on a canvas. 
-        ### You can't put a canvas without a frame. First frame has root as master. 
+
+        ### Frames can scroll, canvases can't. To have a frame, you need to put it on a canvas.
+        ### You can't put a canvas without a frame. First frame has root as master.
         ScrollFrame = tk.Frame(BackFrame)
         ScrollFrame.grid(row=1,column=0,sticky="news")
         ScrollFrame.grid_rowconfigure(0,weight=1)
         ScrollFrame.grid_columnconfigure(0,weight=1)
         ScrollFrame.grid_propagate(False)
-        
+
         ScrollCanvas = tk.Canvas(ScrollFrame)
         ScrollCanvas.grid(row=0,column=0,sticky="news")
-        
+
         scrollbary = tk.Scrollbar(ScrollFrame, orient="vertical", command=ScrollCanvas.yview)
         scrollbary.grid(row=0,column=1,sticky="ns")
         ScrollCanvas.configure(yscrollcommand=scrollbary.set)
-        
+
         OptionsFrame = tk.Frame(ScrollCanvas)
         ScrollCanvas.create_window((0,0),window = OptionsFrame, anchor = "center")
-        
+
 
         ###### generalized ###########
-        
+
         tclocations = [tk.Label() for i in range(0,rows)]
         self.currenttemp = [tk.Label() for i in range(0,rows)]
         self.setpoints = [tk.Entry() for i in range(0,rows)]
-        
+
         self.var = [tk.IntVar(self) for i in range(0,rows)]
         plotornot = [tk.Checkbutton() for i in range(0,rows)]
-        
+
         for i in range(0,rows): ### must have sufficient length of: name, color, var (which depends on pins)
-        
+
             ##### THERMOCOUPLE LOCATIONS ###########
             tclocations[i] = tk.Label(OptionsFrame, relief="solid", font=LARGE_FONT, text='%s'%name[i],fg='%s'%color[i])
             tclocations[i].grid(row=i,pady=10,padx=10)
@@ -288,17 +292,18 @@ class GUI(tk.Tk):
             ########## PLOTTING Y/N CHECK ##################
             plotornot[i] = tk.Checkbutton(OptionsFrame,text='', variable = self.var[i])
             plotornot[i].grid(row=i,column=3,pady=10,padx=10)
-            
+
         OptionsFrame.update_idletasks()
-        
+
         width = 300
         height = 400
         ScrollFrame.config(width=width + scrollbary.winfo_width(),height=height)
-        
+
         ScrollCanvas.config(scrollregion = ScrollCanvas.bbox('all'))
 
     def f(self,TC1):
         for i in range(0,rows):
+            print(TC1)
             self.currenttemp[i].configure(text='%.2f'%(TC1[i]))
         self.update()
 
@@ -315,30 +320,30 @@ dutycycle=25
 
 t= np.ones(len(pins),dtype=int)### is this just a random array of size len(pins)
 
-try: 
+try:
     while True:
         ### temp1 is list of 13
         temp1=TCvalue(U6,pins)
-    
+
         #### LOOP FOR EACH INPUT 0-13
         data,timestep=StoreData(data,temp1,timestep) #store data. TIMESTEP IS RUNNING VARIABLE FOR TIME
         a.clear()  #clear plot on gui
-    
+
         for j,jj in enumerate(pins): #since pins values are its indices
             # print(jj,gui.var[j].get())
             t[j]=plot_data(data[:,j],t[j],gui.var[j],color[j],name[j],timestep) ### updates t (timer)
-    
+
         ##### END OF LOOP ########
-    
+
         plt.grid(b=True, axis='y')
         plt.title('Temperature')
         plt.xlabel('Time (sec)')
         plt.ylabel('Temperature ($^o$C)')
         fig.canvas.draw()
-    
+
         # create new list with the gui.en.gets()s, which we can loop over to read setpoint, which we then get to labjack output via pid.update
         # for loop for each pins
-        
+
         updatedsetpoints = np.zeros(rows)
         for k in range(0,rows):
             try:
@@ -348,51 +353,51 @@ try:
 
         for index,value in enumerate(PWMpins):
             index1=int(idx[index])
-    
-            if setpoint[index]=='': ### if there is no input in the GUI
+
+            if updatedsetpoints[index]=='': ### if there is no input in the GUI
                 stopPWM(U6,dacpins[index])
             else:
                  ### convert to float
-                pid[index].SetPoint=float(setpoint[index]) ### desired temp fed into PWM
+                pid[index].SetPoint=float(updatedsetpoints[index]) ### desired temp fed into PWM
                 pid[index].update(temp1[index1]) ### update with current reading from AIN pin corresponding to timerpin[index]
                 targetpwm=pid[index].output ### pid.output tells us duty cycle we want to run at
                 targetpwm=max(min(int(targetpwm),maxpwm[index]),10) ### won't work at <10% duty cycle, 50 is upper bound to prevent overdraw of current
                 PWM(U6,targetpwm,dacpins[index],timerpins[index]) ### given input from AIN pin i, output to DAC pin j
                 print(targetpwm)
-    
+
         gui.after(1000,gui.f(temp1))
-        
+
 except:
     while True:
         temp1 = np.random.randint(0,high=10,size=len(pins))
         #### LOOP FOR EACH INPUT 0-13
         data,timestep=StoreData(data,temp1,timestep) #store data
         a.clear()  #clear plot on gui
-    
+
         for j,jj in enumerate(pins): #since pins values are its indices
             # print(jj,gui.var[j].get())
             t[j]=plot_data(data[:,j],t[j],gui.var[j],color[j],name[j],timestep) ### original t[j] is "timer" in plot_data function
-    
+
         ##### END OF LOOP ########
-    
+
         plt.grid(b=True, axis='y')
         plt.title('Temperature')
         plt.xlabel('Time (sec)')
         plt.ylabel('Temperature ($^o$C)')
         fig.canvas.draw()
-    
+
         # create new list with the gui.en.gets()s, which we can loop over to read setpoint, which we then get to labjack output via pid.update
         # for loop for each pins
-        
+
         updatedsetpoints = np.zeros(rows)
         for k in range(0,rows):
             try:
                 updatedsetpoints[k] = int(gui.setpoints[k].get())
             except:
                 pass
-            
+
         gui.after(1000,gui.f(temp1))
-    
+
 
 gui.mainloop()
 sys.exit()
